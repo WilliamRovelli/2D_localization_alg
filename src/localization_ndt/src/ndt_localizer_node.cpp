@@ -47,6 +47,9 @@ NdtLocalizerNode::NdtLocalizerNode(ros::NodeHandle &nh, ros::NodeHandle &pnh)
       nh_.subscribe(imu_topic_, 200, &NdtLocalizerNode::imuCallback, this);
   scan_sub_ =
       nh_.subscribe(scan_topic_, 5, &NdtLocalizerNode::scanCallback, this);
+  initialpose_sub_ =
+      nh_.subscribe("initialpose", 1,
+                    &NdtLocalizerNode::initialPoseCallback, this);
 
   // ------- 发布位姿 -------
   pose_pub_ = nh_.advertise<nav_msgs::Odometry>("ndt_odom", 10, false);
@@ -92,6 +95,9 @@ bool NdtLocalizerNode::loadMap(const std::string &path) {
 void NdtLocalizerNode::odomCallback(
     const nav_msgs::OdometryConstPtr &odom_msg) {
   predictor_.updateOdom(odom_msg);
+
+  last_odom_msg_ = *odom_msg;
+  has_last_odom_msg_ = true;
 }
 
 void NdtLocalizerNode::imuCallback(const sensor_msgs::ImuConstPtr &imu_msg) {
@@ -167,29 +173,109 @@ void NdtLocalizerNode::scanCallback(
   publishOdom(scan_msg->header.stamp, T_output);
 } // namespace localization_ndt
 
+void NdtLocalizerNode::initialPoseCallback(
+    const geometry_msgs::PoseWithCovarianceStampedConstPtr& msg) {
+  // 一般 RViz 这里 frame_id 会是 "map"
+  if (msg->header.frame_id != "map") {
+    ROS_WARN_STREAM("initialpose frame_id = '" << msg->header.frame_id
+                    << "', expected 'map'. Using it as map frame anyway.");
+  }
+
+  // 1) 把 Pose 转成 T_map_base
+  Eigen::Matrix4f T_map_base = Eigen::Matrix4f::Identity();
+
+  const auto& p = msg->pose.pose.position;
+  const auto& q_msg = msg->pose.pose.orientation;
+
+  Eigen::Quaterniond q(q_msg.w, q_msg.x, q_msg.y, q_msg.z);
+  q.normalize();
+  Eigen::Matrix3d R = q.toRotationMatrix();
+
+  T_map_base.block<3,3>(0,0) = R.cast<float>();
+  T_map_base(0,3) = static_cast<float>(p.x);
+  T_map_base(1,3) = static_cast<float>(p.y);
+  T_map_base(2,3) = 0.0f;  // 2D 地图，高度忽略
+
+  // 2) 用这个姿态重设预测器的锚点
+  if (!has_last_odom_msg_) {
+    ROS_WARN("Received initialpose but no odom yet. "
+             "Resetting predictor with dummy odom.");
+    nav_msgs::Odometry dummy;
+    dummy.pose.pose.orientation.w = 1.0;
+    predictor_.resetWithCorrection(T_map_base, dummy);
+  } else {
+    predictor_.resetWithCorrection(T_map_base, last_odom_msg_);
+  }
+
+  ROS_INFO_STREAM("Manual initial pose received: x=" << p.x
+                  << ", y=" << p.y);
+}
+
+// 不广播tf map->base_frame_id_
+// void NdtLocalizerNode::publishOdom(const ros::Time &stamp,
+//                                    const Eigen::Matrix4f &T_map_base) {
+//   nav_msgs::Odometry odom;
+//   odom.header.stamp = stamp;
+//   odom.header.frame_id = "map";
+//   odom.child_frame_id = "base_footprint"; // 之后可以改成你真实的 baselink
+
+//   Eigen::Matrix3f R = T_map_base.block<3, 3>(0, 0);
+//   Eigen::Vector3f t = T_map_base.block<3, 1>(0, 3);
+
+//   Eigen::Quaternionf q(R);
+//   q.normalize();
+
+//   odom.pose.pose.position.x = t.x();
+//   odom.pose.pose.position.y = t.y();
+//   odom.pose.pose.position.z = 0.0f; // 2D
+//   odom.pose.pose.orientation.w = q.w();
+//   odom.pose.pose.orientation.x = q.x();
+//   odom.pose.pose.orientation.y = q.y();
+//   odom.pose.pose.orientation.z = q.z();
+
+//   pose_pub_.publish(odom);
+// }
 void NdtLocalizerNode::publishOdom(const ros::Time &stamp,
                                    const Eigen::Matrix4f &T_map_base) {
   nav_msgs::Odometry odom;
   odom.header.stamp = stamp;
   odom.header.frame_id = "map";
-  odom.child_frame_id = "base_footprint"; // 之后可以改成你真实的 baselink
+  odom.child_frame_id  = base_frame_id_;   // 用参数，不要写死
 
-  Eigen::Matrix3f R = T_map_base.block<3, 3>(0, 0);
-  Eigen::Vector3f t = T_map_base.block<3, 1>(0, 3);
+  Eigen::Matrix3f R = T_map_base.block<3,3>(0,0);
+  Eigen::Vector3f t = T_map_base.block<3,1>(0,3);
 
   Eigen::Quaternionf q(R);
   q.normalize();
 
   odom.pose.pose.position.x = t.x();
   odom.pose.pose.position.y = t.y();
-  odom.pose.pose.position.z = 0.0f; // 2D
+  odom.pose.pose.position.z = 0.0f;
   odom.pose.pose.orientation.w = q.w();
   odom.pose.pose.orientation.x = q.x();
   odom.pose.pose.orientation.y = q.y();
   odom.pose.pose.orientation.z = q.z();
 
   pose_pub_.publish(odom);
+
+  // ==== 同步发布 TF: map -> base_frame_id_ ====
+  geometry_msgs::TransformStamped tf_msg;
+  tf_msg.header.stamp = stamp;
+  tf_msg.header.frame_id = "map";
+  tf_msg.child_frame_id  = base_frame_id_;
+
+  tf_msg.transform.translation.x = t.x();
+  tf_msg.transform.translation.y = t.y();
+  tf_msg.transform.translation.z = 0.0;
+
+  tf_msg.transform.rotation.x = q.x();
+  tf_msg.transform.rotation.y = q.y();
+  tf_msg.transform.rotation.z = q.z();
+  tf_msg.transform.rotation.w = q.w();
+
+  tf_broadcaster_.sendTransform(tf_msg);
 }
+
 } // namespace localization_ndt
 // namespace localization_ndt
 

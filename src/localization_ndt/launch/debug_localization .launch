@@ -22,7 +22,6 @@
     <param name="odom_topic"   value="/Y991B020189BC0018/odom/wheel"/>
     <param name="imu_topic"    value="/Y991B020189BC0018/imu"/>
     <param name="base_frame_id" value="base_footprint"/>
-    
     <!-- 可选：NDT 参数 -->
     <param name="ndt_resolution"        value="1.0"/>
     <param name="ndt_num_threads"       value="4"/>

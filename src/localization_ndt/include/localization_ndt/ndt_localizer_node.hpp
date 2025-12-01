@@ -14,9 +14,13 @@
 #include "localization_ndt/types.hpp"
 #include "localization_ndt/simple_predictor.hpp"
 #include "localization_ndt/ndt_matcher.hpp"   
-
+// 用于将雷达转换到baselink下
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
+// 用于手动初始化重定位
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+//发布map到base_footprint的关系
+#include <tf2_ros/transform_broadcaster.h>
 
 
 namespace localization_ndt {
@@ -34,6 +38,7 @@ private:
   void imuCallback(const sensor_msgs::ImuConstPtr& imu_msg);
 
   void publishOdom(const ros::Time& stamp, const Eigen::Matrix4f& T_map_base);
+  void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& msg);
 
 private:
   ros::NodeHandle nh_;
@@ -49,9 +54,8 @@ private:
   ros::Subscriber scan_sub_;
   ros::Subscriber odom_sub_;
   ros::Subscriber imu_sub_;
-
   ros::Publisher pose_pub_;
-
+  ros::Subscriber initialpose_sub_;
   laser_geometry::LaserProjection projector_;
   SimplePredictor predictor_;
   NdtMatcher ndt_matcher_;          
@@ -63,6 +67,11 @@ private:
 
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
+  tf2_ros::TransformBroadcaster tf_broadcaster_; 
+
+  // 记录最近一次里程计，用于 resetWithCorrection
+  nav_msgs::Odometry last_odom_msg_;
+  bool has_last_odom_msg_ = false;
 };
 
 }  // namespace localization_ndt
