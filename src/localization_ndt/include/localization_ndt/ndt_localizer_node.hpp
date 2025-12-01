@@ -15,6 +15,10 @@
 #include "localization_ndt/simple_predictor.hpp"
 #include "localization_ndt/ndt_matcher.hpp"   
 
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
+
+
 namespace localization_ndt {
 
 class NdtLocalizerNode {
@@ -50,10 +54,15 @@ private:
 
   laser_geometry::LaserProjection projector_;
   SimplePredictor predictor_;
-  NdtMatcher ndt_matcher_;          // 新增
+  NdtMatcher ndt_matcher_;          
 
   double ndt_resolution_ = 1.0;     // 参数
   double ndt_max_fitness_score_ = 2.0;
+
+  std::string base_frame_id_ = "base_footprint";
+
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
 };
 
 }  // namespace localization_ndt

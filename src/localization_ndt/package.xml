@@ -16,6 +16,8 @@
   <build_depend>laser_geometry</build_depend>
   <build_depend>ndt_omp</build_depend>
   <build_depend>nav_msgs</build_depend>
+  <build_depend>tf2_ros</build_depend>
+  <build_depend>tf2</build_depend>
 
   <exec_depend>roscpp</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
@@ -24,6 +26,8 @@
   <exec_depend>laser_geometry</exec_depend>
   <exec_depend>ndt_omp</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
-
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>tf2</exec_depend>
+  
   <export/>
 </package>

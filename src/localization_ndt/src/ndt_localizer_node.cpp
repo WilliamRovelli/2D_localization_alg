@@ -9,7 +9,7 @@
 namespace localization_ndt {
 
 NdtLocalizerNode::NdtLocalizerNode(ros::NodeHandle &nh, ros::NodeHandle &pnh)
-    : nh_(nh), pnh_(pnh) {
+    : nh_(nh), pnh_(pnh), tf_buffer_(), tf_listener_(tf_buffer_) {
 
   // ------- 读取参数 -------
   pnh_.param<std::string>("map_pcd_path", map_pcd_path_, std::string(""));
@@ -19,7 +19,8 @@ NdtLocalizerNode::NdtLocalizerNode(ros::NodeHandle &nh, ros::NodeHandle &pnh)
                           std::string("/Y991B020189BC0018/odom/wheel"));
   pnh_.param<std::string>("imu_topic", imu_topic_,
                           std::string("/Y991B020189BC0018/imu"));
-
+  pnh_.param<std::string>("base_frame_id", base_frame_id_,
+                          std::string("base_footprint"));
   // NDT 参数
   int ndt_num_threads = 4;
   pnh_.param("ndt_resolution", ndt_resolution_, 1.0);
@@ -102,9 +103,14 @@ void NdtLocalizerNode::scanCallback(
   // 1) LaserScan -> PointCloud2
   sensor_msgs::PointCloud2 cloud_msg;
   try {
-    projector_.projectLaser(*scan_msg, cloud_msg); // z=0 平面
+    // 把 LaserScan 直接变成 base_frame_id_ 下的点云
+    projector_.transformLaserScanToPointCloud(
+        base_frame_id_, // 目标坐标系：车体基准
+        *scan_msg, cloud_msg, tf_buffer_);
   } catch (const std::exception &e) {
-    ROS_WARN_STREAM("Laser projection failed: " << e.what());
+    ROS_WARN_STREAM_THROTTLE(1.0, "Laser projection (to "
+                                      << base_frame_id_
+                                      << ") failed: " << e.what());
     return;
   }
 
