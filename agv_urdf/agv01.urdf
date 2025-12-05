@@ -1,0 +1,87 @@
+<robot name="sensors">
+    <link name="base_footprint" />
+    <link name="up_camera" />
+    <link name="camera" />
+    <link name="odom" />
+    <link name="code_reader_1" />
+    <link name="laser_0" />
+    <link name="Y991B020189BC0018/laser" />
+    <link name="/berxel_camera1/Cam_base_link" />
+    <link name="/berxel_camera2/Cam_base_link" />
+    <link name="Y991B020189BC0018/imu" />
+    <link name="tray" />
+    <link name="downcamera" />
+    <link name="upcamera" />
+
+        <joint name="up_camera_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="up_camera" />
+            <origin xyz="0.013749895384535195 0.014972034026868641 0.0" rpy="0 0 3.1415" />
+        </joint>
+    
+        <joint name="camera_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="camera" />
+            <origin xyz="-0.0014484 -0.0030376 0.0" rpy="0.0 0.0 0.0044943" />
+        </joint>
+    
+        <joint name="odom_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="odom" />
+            <origin xyz="0 0 0" rpy="0 0 0" />
+        </joint>
+    
+        <joint name="code_reader_1_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="code_reader_1" />
+            <origin xyz="-0.0137499 -0.014972 0.0" rpy="0.0 0.0 0.0" />
+        </joint>
+    
+        <joint name="laser_0_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="laser_0" />
+            <origin xyz="-0.404 -0.105 0" rpy="0 0 0" />
+        </joint>
+    
+        <joint name="laser_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="Y991B020189BC0018/laser" />
+            <origin xyz="0.41874 0.00048 0" rpy="0 0 0.00651" />
+        </joint>
+    
+        <joint name="/berxel_camera1/Cam_base_link_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="/berxel_camera1/Cam_base_link" />
+            <origin xyz="0.43 0.0 0.07" rpy="3.14 -0.07 0.0" />
+        </joint>
+    
+        <joint name="/berxel_camera2/Cam_base_link_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="/berxel_camera2/Cam_base_link" />
+            <origin xyz="-0.43 0.0 0.07" rpy="3.14 -0.08 3.14" />
+        </joint>
+    
+        <joint name="imu_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="Y991B020189BC0018/imu" />
+            <origin xyz="0 0 0" rpy="0 0 0" />
+        </joint>
+    
+        <joint name="tray_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="tray" />
+            <origin xyz="0.012308744495385326 0.013402120734099299 0.0" rpy="0.0 0.0 3.14159" />
+        </joint>
+    
+        <joint name="downcamera_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="downcamera" />
+            <origin xyz="0.000809 -0.0026135 0.0" rpy="-3.1415927 0.0 -3.1381369" />
+        </joint>
+    
+        <joint name="upcamera_joint" type="fixed">
+            <parent link="base_footprint" />
+            <child link="upcamera" />
+            <origin xyz="0.0090476 -0.009903 0.0" rpy="0.0 0.0 3.1379101" />
+        </joint>
+    </robot>

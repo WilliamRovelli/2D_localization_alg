@@ -1,0 +1,48 @@
+<launch>
+  <!-- 只需要配置地图名和 AGV 名 -->
+  <arg name="map_name"  default="xw"/>
+  <arg name="urdf_name" default="agv01"/>
+
+  <!-- 自动用包路径 + 相对路径找到 URDF：
+       $(find localization_ndt) -> /home/wr/localization_alg/src/localization_ndt
+       ../../agv_urdf -> /home/wr/localization_alg/agv_urdf
+  -->
+  <param name="robot_description"
+         textfile="$(find localization_ndt)/../../agv_urdf/$(arg urdf_name).urdf"/>
+
+  <!-- 根据 URDF 发布 TF：base_link/base_footprint -> 各传感器 -->
+  <node name="robot_state_publisher"
+        pkg="robot_state_publisher"
+        type="robot_state_publisher"
+        output="screen">
+  </node>
+
+  <node pkg="localization_ndt"
+        type="ndt_localizer_node"
+        name="ndt_localizer"
+        output="screen">
+
+    <!-- 地图名， map_name 推导 /map/xw.pcd -->
+    <param name="map_name" value="$(arg map_name)"/>
+
+    <!-- “URDF 名字”，让它自己在 workspace_root/agv_urdf 下拼路径 -->
+    <param name="urdf_file" value="$(arg urdf_name)"/>
+
+    <param name="scan_topic"    value="/Y991B020189BC0018/scan"/>
+    <param name="odom_topic"    value="/Y991B020189BC0018/odom/wheel"/>
+    <param name="imu_topic"     value="/Y991B020189BC0018/imu"/>
+    <param name="base_frame_id" value="base_footprint"/>
+
+    <!-- 质量评估（仅使用 fitness + delta_trans/delta_yaw） -->
+    <param name="quality_enable"            value="true" />
+    <param name="quality_fitness_bad"       value="2.0" />
+    <param name="quality_fitness_warn"      value="0.7" />
+    <param name="quality_max_delta_trans"   value="1.5" />
+    <param name="quality_max_delta_yaw_deg" value="20.0" />
+
+    <!-- NDT 参数 -->
+    <param name="ndt_resolution"        value="1.0"/>
+    <param name="ndt_num_threads"       value="4"/>
+    <param name="ndt_max_fitness_score" value="2.0"/>
+  </node>
+</launch>

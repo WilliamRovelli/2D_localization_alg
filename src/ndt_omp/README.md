@@ -6,6 +6,8 @@ For using this package in non-ROS1 projects (ROS2 or without ROS), see forked re
 
 [![Build](https://github.com/koide3/ndt_omp/actions/workflows/build.yml/badge.svg)](https://github.com/koide3/ndt_omp/actions/workflows/build.yml)
 
+## 版本更新去 https://github.com/koide3/ndt_omp。
+
 ### Benchmark (on Core i7-6700K)
 ```
 $ roscd ndt_omp/data

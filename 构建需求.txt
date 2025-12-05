@@ -1,0 +1,92 @@
+====今天===
+位姿写入频率过高待解决（已解决）
+yaml文件用地图+urdf的名字来命名，区分地图和不同的agv生成的yaml。（已解决）
+sh文件也存在问题，我需要的是，地图加载到rviz之后关闭pcl发布地图，关闭sh时候关闭rviz，pcd地图降采样再启动，直接加载到rviz巨卡。
+参数太多需要统一放到一个配置文件中管理
+
+-------大问题1（已解决）----
+频率降到10hz了 检查一下问题
+找到问题所在：当前配置下，computeMatchingErrorAndInlierFraction() 做了一大堆工作，
+对“质量判定”几乎没有实际作用，只是让 log 多了一两个数字。
+先改善量化方式，score方式->参数缺少迭代次数，损失函数小于的阈值也没有设置选项。
+删去了参考hdl的量化评价，但是如何权衡fitness还有观测与预测的误差来衡量好坏还要继续想想。
+目前使用权重调整不同情况下的输出位姿
+
+量化好坏这里还没有改，目前的量化方式过于依赖fitness。
+由于NDT的输出就是fitness
+-----------------
+1，pbstream格式转换。---->转换成高分辨率点云地图
+2，加载地图和urdf文件，imu+odom初值预测
+3，NDT_omp进行雷达和地图匹配
+4，输出格式：Type: nav_mags/Odometry
+============
+第一步，pbstream转pcd
+1）需要pbstream地图还有建图用的bag。
+2）修改launch中urdf文件，改为自己的urdf文件。
+3）修改assets_writer的lua文件的tracking_frame，需要和建图使用的lua文件中的tracking_frame保持一致。
+4）运行assets_writer
+cd cartographer 
+source devel_isolated/setup.bash
+roslaunch cartographer_ros assets_writer_xw_2d\ .launch   bag_filenames:=/home/wr/2025-11-29-09-06-12.bag   pose_graph_filename:=/home/wr/cartographer_guide/cartographer_map/xw_map.pbstream
+
+5）转换成功后pcd地图在bag所在的目录内（本次在/home/wr/Downloads目录下）。
+
+2D激光扫出来的图pcd还z轴总tm有个1-2米的误差。fk cartographer
+
+5）降采样？
+=============
+参考hdl定位系统（https://github.com/koide3/hdl_localization?tab=readme-ov-file）
+量化指标：matching_error，inlier_fraction  接下来我们量化一下参考hdl的matching_error，inlier_fraction，量化一下定位的准确性，并以localization_status这个话题出去。
+=============
+第二步
+----核心算法----
+1）加载pcd地图功能，已验证；（降采样？） z轴方向误差
+2）雷达格式转换，已验证；（雷达点云切块？去掉车体上的脏点，雷达点云270度）
+3）imu+odom初值预测，已验证；
+4）NDT_omp进行雷达和地图匹配，已验证；
+---核心功能添加（核心算法实现后添加）---
+5）添加rviz手动初始化节点（已验证）；
+6）量化定位质量，同时添加判断指标，如果定位质量正确，手动拖拽无效化（各家有各家的样，取各家之所长，bag已验证，还需要实车验证）。
+6）添加speed为0时，初值写入到一个自启动用的脚本中；（已验证）
+7）添加无法重定位时的恢复点位；（已验证）
+
+---细节修正---
+话题名称规则统一。
+可选的ndt参数中缺少紧邻搜索策略的选项。
+
+---高级功能添加（后期添加）---
+局部重定位，参考BnB,当初始化时车辆无法通过写入的初值恢复自身定位时，进行FCSM重定位。
+
+ESKF+imu预积分，使用imu做预测，odom和雷达-地图匹配作为观测，并给反光板观测接入ESKF留下接口。
+
+使用NDT_omp进行匹配，
+
+
+
+====雷达-imu标定=====
+直接尺子量（误差在1到2cm就可以）
+yaw角：让车在开阔地方跑几圈（有转弯）。
+
+用：2D 激光建图/定位得到的 yaw 轨迹 yaw_lidar(t)
+
+IMU（积分或者 ESKF）得到的 yaw 轨迹 yaw_imu(t)
+
+做一个最小二乘 yaw_imu(t) + delta_yaw ≈ yaw_lidar(t)，拟合出一个 固定 yaw 偏差。
+
+====TODO===
+1，由于车有很多编号，后期urdf需要去掉编号，直接读后面的话题。
+2，后期添加ESKF，如果雷达和地图匹配输出不对，要控制仅靠imu和odom往前推的距离。
+3，进行NDT匹配需要滤除车身的点，还有过远的不稳定点。
+---暂时未定---
+base_footprint是baselink的投影，但是标定文件里面z都是0，这表明这个标定文件
+解耦的话，考虑一下slam_toolbox进行建图。
+
+====疑问====
+需要限制点云匹配的区域，裁剪点云范围吗
+
+===新东西===
+最近有看到有人用和rviz不一样的方式展示效果，可以参考一下，看起来很不错
+
+
+
+
